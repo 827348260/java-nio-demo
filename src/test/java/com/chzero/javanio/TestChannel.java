@@ -6,10 +6,18 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CharsetEncoder;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedMap;
 
 /**
  * @author CHZERO
@@ -42,6 +50,35 @@ public class TestChannel{
     //分散读取（Scattering Reads）是指从 Channel 中读取的数据“分散”到多个 Buffer 中
     //聚集写入（Gathering Writes）是指将多个 Buffer 中的数据“聚集”到 Channel
 
+
+    //字符集:  Charset  编码: 字符串->字符数组    解码:字符数组->字符串
+
+    @Test
+    public void testCharset() throws Exception{
+        SortedMap<String, Charset> stringCharsetSortedMap = Charset.availableCharsets();
+        Set<Map.Entry<String, Charset>> entrySet = stringCharsetSortedMap.entrySet();
+        for (Map.Entry<String, Charset> item : entrySet){
+            System.out.println(item.getKey() + " : " + item.getValue());
+        }
+
+        Charset charset = Charset.defaultCharset();
+        System.out.println(charset.name());
+
+        //编码器
+        CharsetEncoder charsetEncoder = charset.newEncoder();
+        //解码器
+        CharsetDecoder charsetDecoder = charset.newDecoder();
+
+        CharBuffer charBuffer = CharBuffer.allocate(1024);
+        charBuffer.put("CHZERO").flip();
+        ByteBuffer encodeChar = charsetEncoder.encode(charBuffer);
+        System.out.println(Arrays.toString(encodeChar.array()));
+        CharBuffer decodeChar = charsetDecoder.decode(encodeChar);
+        System.out.println(Arrays.toString(decodeChar.array()));
+
+
+    }
+
     @Test
     public void testFileChannel4() throws Exception{
         //分散读取（Scattering Reads）是指从 Channel 中读取的数据“分散”到多个 Buffer 中
@@ -51,8 +88,24 @@ public class TestChannel{
         //获取通道
         FileChannel channel = randomAccessFile.getChannel();
         //分配缓冲区
-        ByteBuffer bufferOne = ByteBuffer.allocate(100);
+        ByteBuffer bufferOne = ByteBuffer.allocate(500);
+        ByteBuffer bufferTwo = ByteBuffer.allocate(1024);
 
+        ByteBuffer[] buffers = new ByteBuffer[]{bufferOne, bufferTwo};
+        long read = channel.read(buffers);
+
+        for (ByteBuffer itemBuf :buffers){ itemBuf.flip(); }
+
+        System.out.println(new String(bufferOne.array(), 0, bufferOne.limit()));
+        System.out.println(new String(bufferTwo.array(), 0, bufferTwo.limit()));
+
+
+        RandomAccessFile randomAccessFileWrite = new RandomAccessFile("2.txt", "rw");
+        FileChannel accessFileWriteChannel = randomAccessFileWrite.getChannel();
+        long write = accessFileWriteChannel.write(buffers);
+
+        channel.close();
+        accessFileWriteChannel.close();
     }
 
 
